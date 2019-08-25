@@ -1,27 +1,52 @@
-const responseLogger = (_, resolverResponse) => {
-  console.log(`Resolver returned : ${JSON.stringify(resolverResponse)}`);
+const reqLogger = (next, parentResolvers, args, context) => {
+  console.log(`Resolver req received: ${JSON.stringify(args)}`);
+  next(parentResolvers, args, context);
 };
 
-const middlewares = [];
-const postwares = [responseLogger];
+const resolverConfig = (() => {
+  middlewares = [];
+  afterwares = [];
+
+  return {
+    getMiddlewares: () => middlewares,
+    getAfterwares: () => afterwares,
+    registerMiddlewares: wares => {
+      middlewares = wares;
+    },
+    registerAfterwares: wares => {
+      afterwares = wares;
+    },
+  };
+})();
 
 const buildAstroResolverWrapper = ({
   middlewares,
-  postwares,
+  afterwares,
 }) => resolver => async (parentResolvers, args, context) => {
-  middlewares.forEach(middleware => {
-    middleware(args);
-  });
-  const resolverResponse = await resolver(parentResolvers, args, context);
-  postwares.forEach(postware => {
-    postware(args, resolverResponse);
-  });
-  return resolverResponse;
+  let resolverWithMiddlewares = resolver;
+  for (let i = middlewares.length - 1; i >= 0; --i) {
+    resolverWithMiddlewares = middlewares[i].bind(
+      null,
+      resolverWithMiddlewares,
+    );
+  }
+  const resolverResponse = await resolverWithMiddlewares(
+    parentResolvers,
+    args,
+    context,
+  );
+
+  let resWithAfterware = (res, _) => res;
+  for (let i = afterwares.length - 1; i >= 0; --i) {
+    resWithAfterware = afterwareFunc.bind(null, afterwares[i]);
+  }
+  return resWithAfterware(resolverResponse);
 };
 
+resolverConfig.registerMiddlewares([reqLogger]);
 const astroResolverWrapper = buildAstroResolverWrapper({
-  middlewares,
-  postwares,
+  middlewares: resolverConfig.getMiddlewares(),
+  afterwares: resolverConfig.getAfterwares(),
 });
 
 const buildAstroOperationResolvers = operationResolvers =>
