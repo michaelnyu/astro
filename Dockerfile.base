@@ -1,0 +1,14 @@
+FROM node:alpine
+
+RUN mkdir -p /usr/src/app
+
+# Create app directory
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+COPY yarn.lock ./
+RUN yarn install
+
+COPY . .
+
+CMD node index.js
