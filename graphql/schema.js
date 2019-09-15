@@ -8,6 +8,7 @@ const typeDefs = gql`
     createMessage(text: String): CreateMessageResponse!
   }
   type CreateMessageResponse {
+    id: ID
     err: String!
   }
   type Message {

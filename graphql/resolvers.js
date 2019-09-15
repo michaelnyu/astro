@@ -1,8 +1,16 @@
+// Middlwares
 const reqLogger = (next, parentResolvers, args, context) => {
   console.log(`Resolver req received: ${JSON.stringify(args)}`);
-  next(parentResolvers, args, context);
+  return next(parentResolvers, args, context);
 };
 
+// Afterwares
+const resLogger = (next, res) => {
+  console.log(`Resolver response: ${JSON.stringify(res)}`);
+  return next(res);
+};
+
+// Config to store middlewares and afterwares
 const resolverConfig = (() => {
   middlewares = [];
   afterwares = [];
@@ -19,10 +27,14 @@ const resolverConfig = (() => {
   };
 })();
 
+/*
+  helper function that applys middlwares and afterwares to a single resolver.
+*/
 const buildAstroResolverWrapper = ({
   middlewares,
   afterwares,
 }) => resolver => async (parentResolvers, args, context) => {
+  // chain the middlewares to the resolver
   let resolverWithMiddlewares = resolver;
   for (let i = middlewares.length - 1; i >= 0; --i) {
     resolverWithMiddlewares = middlewares[i].bind(
@@ -30,26 +42,36 @@ const buildAstroResolverWrapper = ({
       resolverWithMiddlewares,
     );
   }
+
+  // execute the chain of middlewares + the resolver
   const resolverResponse = await resolverWithMiddlewares(
     parentResolvers,
     args,
     context,
   );
 
-  let resWithAfterware = (res, _) => res;
+  // chain afterwares to an function that simply returns a the result
+  let resWithAfterware = res => res;
   for (let i = afterwares.length - 1; i >= 0; --i) {
-    resWithAfterware = afterwareFunc.bind(null, afterwares[i]);
+    resWithAfterware = afterwares[i].bind(null, resWithAfterware);
   }
+
   return resWithAfterware(resolverResponse);
 };
 
+// Register Middlewares & Afterwares
 resolverConfig.registerMiddlewares([reqLogger]);
+resolverConfig.registerAfterwares([resLogger]);
 const astroResolverWrapper = buildAstroResolverWrapper({
   middlewares: resolverConfig.getMiddlewares(),
   afterwares: resolverConfig.getAfterwares(),
 });
 
-const buildAstroOperationResolvers = operationResolvers =>
+/*
+  Helper function that applys an inputted `resolverWrapper` to every operation in
+  a basic graphql resolver object, the `operationResolvers`.
+*/
+const buildOperationResolvers = (operationResolvers, resolverWrapper) =>
   Object.entries(operationResolvers).reduce(
     (accumulator, operationResolver) => {
       const [operationName, resolvers] = operationResolver;
@@ -60,7 +82,7 @@ const buildAstroOperationResolvers = operationResolvers =>
             const [resolverName, resolverFunc] = resolver;
             return {
               ...accumulator,
-              [resolverName]: astroResolverWrapper(resolverFunc),
+              [resolverName]: resolverWrapper(resolverFunc),
             };
           },
           {},
@@ -70,6 +92,7 @@ const buildAstroOperationResolvers = operationResolvers =>
     {},
   );
 
+// The base graphql resolver object.
 const operationResolvers = {
   Query: {
     messages: async (_, __, { dataSources }) => {
@@ -82,12 +105,16 @@ const operationResolvers = {
   },
   Mutation: {
     createMessage: async (_, { text }, { dataSources }) => {
-      const err = await dataSources.messageAPI.create({ text });
+      const { id, err } = await dataSources.messageAPI.create({ text });
       return {
+        id,
         err,
       };
     },
   },
 };
 
-module.exports = buildAstroOperationResolvers(operationResolvers);
+module.exports = buildOperationResolvers(
+  operationResolvers,
+  astroResolverWrapper,
+);

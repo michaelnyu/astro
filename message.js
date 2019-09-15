@@ -39,10 +39,18 @@ class Message {
 
   async create({ text }) {
     try {
-      await db.query('INSERT INTO message (text) VALUES ($1);', [text]);
-      return null;
+      const { rows } = await db.query(
+        'INSERT INTO message (text) VALUES ($1) RETURNING id;',
+        [text],
+      );
+      return {
+        id: rows[0].id,
+        err: '',
+      };
     } catch (err) {
-      return err;
+      return {
+        err,
+      };
     }
   }
 }
