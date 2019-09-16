@@ -25,7 +25,6 @@ class Message {
   }
 
   async getAll({ offset = 0, limit = 5000 }) {
-    console.log({ offset, limit });
     try {
       const { rows } = await db.query(
         'SELECT * FROM message LIMIT $1 OFFSET $2',

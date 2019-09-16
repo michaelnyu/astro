@@ -2,11 +2,23 @@ version: '3.7'
 services:
   postgres:
     image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'password'
+      POSTGRES_DB: 'astro_db'
+    volumes:
+      - ./init/:/docker-entrypoint-initdb.d/
+    restart: always
   astro:
     build:
       context: ./
-      dockerfile: Dockerfile.base
+      dockerfile: Dockerfile
     ports:
-    - "4000:4000"
+      - '4000:4000'
+    depends_on:
+      - postgres
     links:
-    - postgres
+      - postgres
+    restart: always

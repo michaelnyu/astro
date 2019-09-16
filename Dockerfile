@@ -10,5 +10,7 @@ COPY yarn.lock ./
 RUN yarn install
 
 COPY . .
+COPY dbConfig.docker.js ./dbConfig.js
 
+# CMD node init/message.js
 CMD node index.js
