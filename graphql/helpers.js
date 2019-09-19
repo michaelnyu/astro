@@ -47,6 +47,14 @@ class ResolverWithWares {
     return Object.entries(operationResolvers).reduce(
       (accumulator, operationResolver) => {
         const [operationName, resolvers] = operationResolver;
+
+        // TODO: apply middleware and afterware to subscriptions
+        if (operationName === 'Subscription') {
+          return {
+            ...accumulator,
+            [operationName]: resolvers,
+          };
+        }
         return {
           ...accumulator,
           [operationName]: Object.entries(resolvers).reduce(

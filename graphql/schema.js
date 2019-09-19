@@ -7,6 +7,9 @@ const typeDefs = gql`
   type Mutation {
     createMessage(text: String): CreateMessageResponse!
   }
+  type Subscription {
+    messageCreated: Message
+  }
   type CreateMessageResponse {
     id: ID!
     err: String!
